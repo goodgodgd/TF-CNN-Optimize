@@ -236,7 +236,6 @@ def _configure_learning_rate(num_samples_per_epoch, global_step):
                     FLAGS.num_epochs_per_decay)
   if FLAGS.sync_replicas:
     decay_steps /= FLAGS.replicas_to_aggregate
-  print('decay_steps=', decay_steps, 'decay_factor', FLAGS.learning_rate_decay_factor)
 
   if FLAGS.learning_rate_decay_type == 'exponential':
     return tf.train.exponential_decay(FLAGS.learning_rate,
@@ -381,8 +380,6 @@ def _get_variables_to_train():
 def main(_):
   if not FLAGS.dataset_dir:
     raise ValueError('You must supply the dataset directory with --dataset_dir')
-
-  print('checkpoint_exclude_scopes', FLAGS.checkpoint_exclude_scopes)
 
   tf.logging.set_verbosity(tf.logging.INFO)
   with tf.Graph().as_default():

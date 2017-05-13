@@ -8,3 +8,9 @@ a = 'asdf'
 b = 'qwer'
 c = [a, b]
 print(c)
+
+d = 'asdf%d asdf'
+e = d
+print(e)
+e = d%1
+print(e)

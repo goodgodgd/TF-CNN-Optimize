@@ -1,17 +1,14 @@
 import numpy as np
 import os
 import tensorflow as tf
-# import urllib2
-from urllib.request import urlopen
 import matplotlib.pyplot as plt
 
 from nets import inception
 from preprocessing import inception_preprocessing
 import convert_cifar as cifar
-
+import dataset_utils
 
 slim = tf.contrib.slim
-image_size = inception.inception_v3.default_image_size
 
 tf.app.flags.DEFINE_string(
     'model_name', 'inception_resnet_v2', 'Model name to use')
@@ -29,7 +26,7 @@ tf.app.flags.DEFINE_integer(
     'Number of output classes.')
 
 tf.app.flags.DEFINE_integer(
-    'batch_size', 32,
+    'batch_size', 2,
     'batch input size')
 
 FLAGS = tf.app.flags.FLAGS
@@ -39,12 +36,14 @@ name_to_model_net = {'inception_v4': inception.inception_v4,
                      'inception_resnet_v2': inception.inception_resnet_v2}
 name_to_arg_scope = {'inception_v4': inception.inception_v4_arg_scope,
                      'inception_resnet_v2': inception.inception_resnet_v2_arg_scope}
-name_to_dataset = {'cifar10': '/home/cideep/Work/tensorflow/datasets/cifar-10/tfrecord/cifar10_test.tfrecord',
-                   'cifar100': '/home/cideep/Work/tensorflow/datasets/cifar-100/tfrecord/cifar100_test.tfrecord'}
 name_to_name_scope = {'inception_v4': 'InceptionV4',
                      'inception_resnet_v2': 'InceptionResnetV2'}
 name_to_image_size = {'inception_v4': inception.inception_v4.default_image_size,
                      'inception_resnet_v2': inception.inception_resnet_v2.default_image_size}
+
+DATASET_PATH_PATTERN = '/home/cideep/Work/tensorflow/datasets/%s/tfrecord'
+
+
 
 def read_and_decode(filename_queue):
     reader = tf.TFRecordReader()
@@ -64,8 +63,7 @@ def read_and_decode(filename_queue):
     # Convert from a scalar string tensor to a 3D uint8 tensor
     flat_image = tf.decode_raw(features['image/encoded'], tf.uint8)
     label = tf.cast(features['image/class/label'], tf.int32)
-    image_size = name_to_image_size[FLAGS.model_name]
-    image = tf.reshape(flat_image, tf.constant([image_size, image_size, 3], dtype=tf.int32))
+    image = tf.reshape(flat_image, tf.constant([cifar.IMAGE_SIZE, cifar.IMAGE_SIZE, 3], dtype=tf.int32))
 
     return image, label
 
@@ -85,66 +83,96 @@ def inputs(batch_size):
     Note that an tf.train.QueueRunner is added to the graph, which
     must be run using e.g. tf.train.start_queue_runners().
     """
-    filename = name_to_dataset[FLAGS.dataset_name]
+    filename = (DATASET_PATH_PATTERN % FLAGS.dataset_name) + '/test.tfrecord'
 
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer([filename], num_epochs=1)
         # Even when reading in multiple threads, share the filename queue.
         image, label = read_and_decode(filename_queue)
 
-        # preprocess for inception input
+        # pre process for inception input
+        image_size = name_to_image_size[FLAGS.model_name]
         processed_image = inception_preprocessing.preprocess_image(
-            image, cifar.IMAGE_SIZE, cifar.IMAGE_SIZE, is_training=False)
-        processed_images = tf.expand_dims(processed_image, 0)
-        labels = label
+            image, image_size, image_size, is_training=False)
 
-        # processed_images, labels = tf.train.batch(tensors=[processed_image, label],
-        #                                           batch_size=batch_size,
-        #                                           num_threads=2, capacity=1000)
+        processed_images, raw_images, labels = tf.train.batch(tensors=[processed_image, image, label],
+                                                  batch_size=batch_size,
+                                                  num_threads=2, capacity=1000)
 
     print(processed_images.shape)
-    return processed_images, labels
+    return processed_images, raw_images, labels
+
+
+def pass_network(processed_images, model_name):
+    # Create the model, use the default arg scope to configure the batch norm parameters.
+    net_logit = name_to_model_net[model_name]
+    arg_scope = name_to_arg_scope[model_name]
+    with slim.arg_scope(arg_scope()):
+        logits, _ = net_logit(processed_images, num_classes=FLAGS.num_classes, is_training=False)
+    probabilities = tf.nn.softmax(logits)
+    return probabilities
+
+
+def print_results(images, labels, probabilities, class_names):
+    probabilities = np.squeeze(probabilities)
+    print('probabilities of', labels, '\n', probabilities)
+
+    prob_first = probabilities[0, 0:]
+    sorted_inds = [i[0] for i in sorted(enumerate(-prob_first), key=lambda x: x[1])]
+    result_text = '%s => %.2f' % (class_names[sorted_inds[0]], 100 * prob_first[sorted_inds[0]])
+
+    disp_image = images[0]
+    plt.clf()
+    plt.imshow(disp_image.astype(np.uint8))
+    plt.text(disp_image.shape[0], disp_image.shape[1]/2, result_text,
+             horizontalalignment='left', verticalalignment='center',
+             fontsize=15, color='blue')
+    plt.axis('off')
+    plt.pause(1)
+    plt.draw()
 
 
 def main(_):
+    class_names = dataset_utils.read_label_file(DATASET_PATH_PATTERN % FLAGS.dataset_name)
+
     with tf.Graph().as_default():
-        # images, labels = inputs(batch_size=FLAGS.batch_size)
+        processed_images, raw_images, labels = inputs(batch_size=FLAGS.batch_size)
 
-        url = "http://static.trustedreviews.com/94/00003b9eb/f7f9/airplane.jpg"
-        image_string = urlopen(url).read()
-        image = tf.image.decode_jpeg(image_string, channels=3)
-        processed_image = inception_preprocessing.preprocess_image(image, image_size, image_size, is_training=False)
-        processed_images = tf.expand_dims(processed_image, 0)
+        probabilities = pass_network(processed_images, FLAGS.model_name)
 
-        # Create the model, use the default arg scope to configure the batch norm parameters.
-        net_logit = name_to_model_net[FLAGS.model_name]
-        arg_scope = name_to_arg_scope[FLAGS.model_name]
-        with slim.arg_scope(arg_scope()):
-            logits, _ = net_logit(processed_images, num_classes=FLAGS.num_classes, is_training=False)
-
-        probabilities = tf.nn.softmax(logits)
+        sess = tf.Session()
         init_fn = slim.assign_from_checkpoint_fn(
             FLAGS.checkpoint_path,
             slim.get_model_variables(name_to_name_scope[FLAGS.model_name]))
+        init_fn(sess)
+        init_local = tf.local_variables_initializer()
+        sess.run(init_local)
 
-        with tf.Session() as sess:
-            init_fn(sess)
-            np_images, np_probabilities = sess.run([image, probabilities])
-            np_probabilities = np_probabilities[0, 0:]
-            print('probabilities:', probabilities)
-            sorted_inds = [i[0] for i in sorted(enumerate(-np_probabilities), key=lambda x:x[1])]
-        # names = imagenet.create_readable_names_for_imagenet_labels()
-        result_text=''
-        for i in range(5):
-            index = sorted_inds[i]
-            print('Probability %0.2f%% => [%d]' % (100*np_probabilities[index], index))
-        result_text+=str(sorted_inds[0])+'=>'+str( "{0:.2f}".format(100*np_probabilities[sorted_inds[0]]))+'%\n'
-        print(np_images.shape)
+        # Start input enqueue threads.
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
         plt.figure()
-        plt.imshow(np_images[0].astype(np.uint8))
-        plt.text(225,225,result_text,horizontalalignment='center', verticalalignment='center',fontsize=21,color='blue')
-        plt.axis('off')
-        plt.show()
+        np.set_printoptions(precision=3, suppress=True)
+
+        try:
+            step = 0
+            while not coord.should_stop():
+                step += 1
+                [np_images, np_labels, np_probabilities] = sess.run(
+                    [raw_images, labels, probabilities])
+
+                print_results(np_images, np_labels, np_probabilities, class_names)
+
+        except tf.errors.OutOfRangeError:
+            print('Done evaluating for %d steps.' % step)
+        finally:
+            # When done, ask the threads to stop.
+            coord.request_stop()
+
+        # Wait for threads to finish.
+        coord.join(threads)
+        sess.close()
 
 
 if __name__ == '__main__':
