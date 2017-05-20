@@ -1,19 +1,22 @@
+# changing lines
+DATASET_NAME=cifar100
+MODEL_NAME=inception_resnet_v2
+SCOPE_VAR=InceptionResnetV2
+
+# below lines are fixed
+PYTHON_PATH=/home/cideep/Work/tensorflow/tfenv/bin
 SCRIPT=`realpath $0`
 THISPATH=`dirname $SCRIPT`
 
-DATASET_NAME=cifar100
-DATASET_DIR=/home/cideep/Work/tensorflow/datasets/cifar-100/tfrecord
-
-MODEL_NAME=inception_resnet_v2
-CHECKPOINT_PATH=/home/cideep/Work/tensorflow/checkpoints/inception_resnet_v2_2016_08_30.ckpt
-CHECKPOINT_EXCLUDE='InceptionResnetV2/Logits,InceptionResnetV2/AuxLogits'
-
-TRAIN_DIR=/home/cideep/Work/tensorflow/checkpoints/inc-resnet-v2-cifar100
+DATASET_DIR=/home/cideep/Work/tensorflow/datasets/${DATASET_NAME}/tfrecord
+CHECKPOINT_PATH=/home/cideep/Work/tensorflow/checkpoints/${MODEL_NAME}.ckpt
+CHECKPOINT_EXCLUDE="${SCOPE_VAR}/Logits,${SCOPE_VAR}/AuxLogits"
+TRAIN_DIR=/home/cideep/Work/tensorflow/checkpoints/${MODEL_NAME}_${DATASET_NAME}
 rm -r ${TRAIN_DIR}
 mkdir ${TRAIN_DIR}
 
-echo 'start retraining inception-Resnet-v2 on cifar100'
-python ${THISPATH}/../train_image_classifier.py \
+echo -e "start retraining ${MODEL_NAME} on ${DATASET_NAME}"
+${PYTHON_PATH}/python ${THISPATH}/../train_image_classifier.py \
     --train_dir=${TRAIN_DIR} \
     --optimizer=rmsprop \
     --dataset_name=${DATASET_NAME} \
@@ -27,5 +30,5 @@ python ${THISPATH}/../train_image_classifier.py \
     --checkpoint_path=${CHECKPOINT_PATH} \
     --checkpoint_exclude_scopes=${CHECKPOINT_EXCLUDE}
 
-echo -e 'finished retraining inception-Resnet-v2 on cifar100\n\n\n'
+echo -e "finished retraining ${MODEL_NAME} on ${DATASET_NAME}"
 

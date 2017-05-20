@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import shutil
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -7,6 +8,7 @@ from nets import inception
 from preprocessing import inception_preprocessing
 import convert_cifar as cifar
 import dataset_utils
+import my_exceptions
 
 slim = tf.contrib.slim
 
@@ -21,12 +23,16 @@ tf.app.flags.DEFINE_string(
     'dataset_name', 'cifar10',
     'The source dataset name')
 
-tf.app.flags.DEFINE_integer(
-    'num_classes', 10,
-    'Number of output classes.')
+tf.app.flags.DEFINE_string(
+    'split_name', 'test',
+    'The data split name')
+
+tf.app.flags.DEFINE_string(
+    'output_dir', '/home/cideep/Work/tensorflow/output-data/tmp',
+    'Dir to write output data')
 
 tf.app.flags.DEFINE_integer(
-    'batch_size', 2,
+    'batch_size', 32,
     'batch input size')
 
 FLAGS = tf.app.flags.FLAGS
@@ -40,9 +46,12 @@ name_to_name_scope = {'inception_v4': 'InceptionV4',
                      'inception_resnet_v2': 'InceptionResnetV2'}
 name_to_image_size = {'inception_v4': inception.inception_v4.default_image_size,
                      'inception_resnet_v2': inception.inception_resnet_v2.default_image_size}
+dataset_to_num_classes = {'cifar10': 10,
+                          'cifar100': 100}
 
 DATASET_PATH_PATTERN = '/home/cideep/Work/tensorflow/datasets/%s/tfrecord'
-
+OUTPUT_DATA_PATH = '/home/cideep/Work/tensorflow/output-data'
+DATA_SIZE = 10000
 
 
 def read_and_decode(filename_queue):
@@ -68,7 +77,7 @@ def read_and_decode(filename_queue):
     return image, label
 
 
-def inputs(batch_size):
+def inputs(filename, batch_size):
     """Reads input data num_epochs times.
 
     Args:
@@ -83,7 +92,6 @@ def inputs(batch_size):
     Note that an tf.train.QueueRunner is added to the graph, which
     must be run using e.g. tf.train.start_queue_runners().
     """
-    filename = (DATASET_PATH_PATTERN % FLAGS.dataset_name) + '/test.tfrecord'
 
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer([filename], num_epochs=1)
@@ -103,21 +111,30 @@ def inputs(batch_size):
     return processed_images, raw_images, labels
 
 
-def pass_network(processed_images, model_name):
+def pass_network(processed_images, model_name, num_classes):
     # Create the model, use the default arg scope to configure the batch norm parameters.
     net_logit = name_to_model_net[model_name]
     arg_scope = name_to_arg_scope[model_name]
     with slim.arg_scope(arg_scope()):
-        logits, _ = net_logit(processed_images, num_classes=FLAGS.num_classes, is_training=False)
+        logits, _ = net_logit(processed_images, num_classes=num_classes, is_training=False)
     probabilities = tf.nn.softmax(logits)
     return probabilities
 
 
+def init_ops(sess):
+    init_fn = slim.assign_from_checkpoint_fn(
+        FLAGS.checkpoint_path,
+        slim.get_model_variables(name_to_name_scope[FLAGS.model_name]))
+    init_fn(sess)
+    init_local = tf.local_variables_initializer()
+    sess.run(init_local)
+
+
 def print_results(images, labels, probabilities, class_names):
     probabilities = np.squeeze(probabilities)
-    print('probabilities of', labels, '\n', probabilities)
 
     prob_first = probabilities[0, 0:]
+    print('first sample of batch, label and probs:', labels[0], '\n', prob_first)
     sorted_inds = [i[0] for i in sorted(enumerate(-prob_first), key=lambda x: x[1])]
     result_text = '%s => %.2f' % (class_names[sorted_inds[0]], 100 * prob_first[sorted_inds[0]])
 
@@ -128,25 +145,42 @@ def print_results(images, labels, probabilities, class_names):
              horizontalalignment='left', verticalalignment='center',
              fontsize=15, color='blue')
     plt.axis('off')
-    plt.pause(1)
+    plt.pause(.1)
     plt.draw()
+
+
+def stack_results(output_data, labels, probabilities, step, bs):
+    if (step+1) * bs >= output_data.shape[0]:
+        raise my_exceptions.GeneralError('out of data rows at %d' % step)
+    print('data shape', labels.shape, probabilities.shape)
+    output_data[(step * bs):((step+1) * bs), 0:] = np.column_stack((labels, probabilities))
+    return output_data
+
+
+def save_probabilities(output_data, dstpath, filename):
+    # if os.path.exists(dstpath):
+    #     shutil.rmtree(dstpath, ignore_errors=True)
+    if not os.path.exists(dstpath):
+        os.makedirs(dstpath)
+    output_path = os.path.join(dstpath, filename)
+    np.save(output_path, output_data)
 
 
 def main(_):
     class_names = dataset_utils.read_label_file(DATASET_PATH_PATTERN % FLAGS.dataset_name)
+    filename = os.path.join((DATASET_PATH_PATTERN % FLAGS.dataset_name) + '/%s.tfrecord' % FLAGS.split_name)
+    num_classes = dataset_to_num_classes[FLAGS.dataset_name]
+    output_data = np.zeros((DATA_SIZE,num_classes+1))
+    print(output_data.shape)
 
     with tf.Graph().as_default():
-        processed_images, raw_images, labels = inputs(batch_size=FLAGS.batch_size)
 
-        probabilities = pass_network(processed_images, FLAGS.model_name)
+        processed_images, raw_images, labels = inputs(filename, FLAGS.batch_size)
+
+        probabilities = pass_network(processed_images, FLAGS.model_name, num_classes)
 
         sess = tf.Session()
-        init_fn = slim.assign_from_checkpoint_fn(
-            FLAGS.checkpoint_path,
-            slim.get_model_variables(name_to_name_scope[FLAGS.model_name]))
-        init_fn(sess)
-        init_local = tf.local_variables_initializer()
-        sess.run(init_local)
+        init_ops(sess)
 
         # Start input enqueue threads.
         coord = tf.train.Coordinator()
@@ -158,14 +192,19 @@ def main(_):
         try:
             step = 0
             while not coord.should_stop():
-                step += 1
                 [np_images, np_labels, np_probabilities] = sess.run(
                     [raw_images, labels, probabilities])
 
                 print_results(np_images, np_labels, np_probabilities, class_names)
+                output_data = stack_results(output_data, np_labels, np_probabilities, step, FLAGS.batch_size)
+                step += 1
+                # if step > 100:
+                #     raise my_exceptions.GeneralError('out of range')
 
         except tf.errors.OutOfRangeError:
             print('Done evaluating for %d steps.' % step)
+        except my_exceptions.GeneralError as ge:
+            print('Done evaluating for %d steps.' % step, ge)
         finally:
             # When done, ask the threads to stop.
             coord.request_stop()
@@ -173,6 +212,8 @@ def main(_):
         # Wait for threads to finish.
         coord.join(threads)
         sess.close()
+
+    save_probabilities(output_data, FLAGS.output_dir, FLAGS.split_name)
 
 
 if __name__ == '__main__':

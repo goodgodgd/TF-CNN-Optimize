@@ -9,7 +9,7 @@ import dataset_utils
 
 slim = tf.contrib.slim
 
-FILE_PATTERN = '%s_%s.tfrecord'
+FILE_PATTERN = '%s.tfrecord'
 
 
 def dataset_config(dataset_name):
@@ -43,7 +43,7 @@ def get_dataset(dataset_name, split_name, dataset_dir):
   if split_name not in splits_to_sizes:
     raise ValueError('split name %s was not recognized.' % split_name)
 
-  data_file = os.path.join(dataset_dir, FILE_PATTERN % (dataset_name, split_name))
+  data_file = os.path.join(dataset_dir, FILE_PATTERN % (split_name))
 
   # Allowing None in the signature so that dataset_factory can use the default.
   reader = tf.TFRecordReader
