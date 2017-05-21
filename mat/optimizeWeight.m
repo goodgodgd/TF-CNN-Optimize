@@ -38,19 +38,23 @@ datalen = size(probs_grt,1);
 numclass = size(probs_grt,2);
 H = zeros(numclass+1, numclass);
 
-for i=numclass:-1:1
+for i=1:numclass
     PROBLEM.f = [zeros(numclass+1,1); ones(datalen,1)];
     PROBLEM.Aineq = [probs_pad, -eye(datalen); -probs_pad, -eye(datalen)];
     PROBLEM.bineq = [probs_grt(:,i); -probs_grt(:,i)];
     PROBLEM.lb = zeros(size(PROBLEM.f));
     PROBLEM.solver = 'linprog';
 %     PROBLEM.options = optimoptions('linprog', 'Algorithm', 'dual-simplex', ...
-%         'MaxIterations', 1000, 'Display', 'off');
+%         'MaxIterations', 200, 'Display', 'off');
     PROBLEM.options = optimoptions('linprog', 'Algorithm', 'interior-point', ...
-        'MaxIterations', 1000, 'Display', 'off');
-    h = linprog(PROBLEM);
-    [i size(h)]
-    H(:,i) = h(1:numclass+1)';
+        'MaxIterations', 200, 'Display', 'off');
+    [h, fval, exitFlag, output] = linprog(PROBLEM);
+    if exitFlag~=1 || isempty(h) || sum(abs(h(1:numclass))) < 0.5
+        H(i,i) = 1;
+    else
+        H(:,i) = h(1:numclass+1)';
+    end
+    class_i_weight = [i exitFlag H(i,i) sum(H(:,i)) isempty(h)]
 end
 probs_opt = probs_pad*H;
 end
@@ -59,9 +63,9 @@ end
 function computeErrors(probs_grt, probs_opt, probs_src)
 
 diff_raw = probs_grt - probs_src;
-norm_raw = norm(diff_raw,'fro')
-diff_sum_raw = sum(sum(abs(diff_raw)))
+L1_norm_raw = norm(diff_raw,'fro')
+L2_norm_raw = sum(sum(abs(diff_raw)))
 diff_opt = probs_grt - probs_opt;
-norm_opt = norm(diff_opt,'fro')
-diff_sum_opt = sum(sum(abs(diff_opt)))
+L1_norm_opt = norm(diff_opt,'fro')
+L2_norm_opt = sum(sum(abs(diff_opt)))
 end

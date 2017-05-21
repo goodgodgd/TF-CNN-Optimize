@@ -8,7 +8,7 @@ list_dir = list_dir(isdir==1 & startsWith(names, '.')==0);
 
 trainSplit = 'test';
 
-for i=1:length(list_dir)
+for i=2
     dirpath = [list_dir(i).folder, '/', list_dir(i).name]
     optimizeWeight(dirpath, trainSplit)
 %     evaluateResult(dirpath)
