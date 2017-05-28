@@ -1,3 +1,27 @@
+function funs = cnnOptFuncs()
+  funs.fun1=@fun1;
+  funs.fun2=@fun2;
+end
+
+function [validLabels, validProbs, testLabels, testProbs] = loadData(path)
+  y=x;
+end
+
+function z=fun2
+  z=1;
+end
+
+
+>> myfuns = makefuns;
+>> myfuns.fun1(5)    
+ans =
+     5
+>> myfuns.fun2()     
+ans =
+     1
+
+
+
 trainFileName = [dirname, '/', splitName, '.mat']
 data = load(trainFileName);
 data = data.data;

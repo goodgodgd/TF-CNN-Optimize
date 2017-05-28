@@ -35,6 +35,7 @@ sprintf('%6d  %6d  %6d  %6.3f\n', classAccuracyResult')
 figure(1)
 bins = 0:0.05:1;
 histogram(classAccuracyResult(:,4), bins)
+axis([0 1 0 20])
 
 
 %% optimize H by probabilities of within range 0.2~0.5
@@ -82,6 +83,7 @@ sprintf('%6d  %6d  %6d  %6.3f\n', classAccuracyResult')
 figure(2)
 bins = 0:0.05:1;
 histogram(classAccuracyResult(:,4), bins)
+axis([0 1 0 20])
 
 zero_inds = find(classAccuracyResult(:,2)==0);
 if ~isempty(zero_inds)

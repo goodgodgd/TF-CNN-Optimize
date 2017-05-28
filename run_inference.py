@@ -117,6 +117,7 @@ def pass_network(processed_images, model_name, num_classes):
     arg_scope = name_to_arg_scope[model_name]
     with slim.arg_scope(arg_scope()):
         logits, _ = net_logit(processed_images, num_classes=num_classes, is_training=False)
+    # also save logits
     probabilities = tf.nn.softmax(logits)
     return probabilities
 
