@@ -11,11 +11,10 @@ M_recon = U*S*V';
 
 S_diag = diag(S);
 S_norm = S_diag/sum(abs(S_diag));
-valid = (S_norm < tolerance);
-inval = ~valid;
+inval = (S_norm < tolerance);
 S_diag(inval) = 1;
 S_inv_diag = 1./S_diag;
-S_inv_diag(valid) = 0;
+S_inv_diag(inval) = 0;
 
 if m==n
     S_inv = diag(S_inv_diag);
