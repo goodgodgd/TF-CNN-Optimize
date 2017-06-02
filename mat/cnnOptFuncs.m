@@ -1,6 +1,7 @@
 function funs = cnnOptFuncs()
   funs.loadData=@loadData;
   funs.optimizeWeightWithinRange=@optimizeWeightWithinRange;
+  funs.optimizeWeightWithWeight=@optimizeWeightWithWeight;
   funs.optimizeWeight=@optimizeWeight;
   funs.correctProbs=@correctProbs;
   funs.evaluateResult=@evaluateResult;
@@ -22,6 +23,62 @@ testProbs = data(:,2:end);
 end
 
 
+function H = optimizeWeightWithWeight(labels, probs, stillWeight, minGTProb)
+[~, maxCols] = max(probs, [], 2);
+datalen = length(labels);
+probGTInds = sub2ind(size(probs), (1:datalen)', labels);
+probsAtGT = probs(probGTInds);
+probMaxInds = sub2ind(size(probs), (1:datalen)', maxCols);
+probsAtMax = probs(probMaxInds);
+changeTF = (labels~=maxCols & probsAtGT>minGTProb & probsAtMax<probsAtGT*2);
+changeInds = find(changeTF);
+probsChange = probs(changeTF,:);
+changeLen = length(changeInds)
+
+
+labelChg = labels(changeTF);
+[length(find(labelChg==11)) length(find(labelChg==12)) length(find(labelChg==36)) length(find(labelChg==56))]
+maxColsChg = maxCols(changeTF);
+labelChgInds = sub2ind([changeLen size(probs,2)], (1:changeLen)', labelChg);
+maxColsChgInds = sub2ind([changeLen size(probs,2)], (1:changeLen)', maxColsChg);
+changedProbInds = [probsChange(labelChgInds), probsChange(maxColsChgInds), labelChg, maxColsChg];
+sprintf('%8.3f %8.3f %5d %5d\n', changedProbInds')
+
+% figure(3)
+% targetInds = (labels==12);
+% bins = 0:0.05:1;
+% histogram(probsAtGT(targetInds), bins)
+
+
+probsGT = probs;
+for ci = changeInds'
+    probsGT(ci,:) = createGTProb(probs(ci,:), labels(ci));
+end
+
+stillInds = (~changeTF);
+probsGT(stillInds,:) = stillWeight * probsGT(stillInds,:);
+probsPad = [probs, ones(size(labels))];
+probsPad(stillInds,:) = stillWeight * probsPad(stillInds,:);
+H = probsGT'*pseudoInverse(probsPad');
+
+% probsChangePad = [probs(changeInds,:), ones(length(changeInds),1)];
+% H = probsGT(changeInds,:)' * pseudoInverse(probsChangePad');
+end
+
+
+function probGT = createGTProb(probPred, labelGT)
+probGT = probPred;
+[~, labelMax] = max(probPred, [], 2);
+assert(labelMax~=labelGT, 'labelMax==labelGT')
+
+% probsToChange = [probGT(labelGT) probGT(labelMax)]
+sum = probGT(labelGT) + probGT(labelMax);
+splitRatio = 0.8;
+probGT(labelGT) = sum*splitRatio;
+probGT(labelMax) = sum*(1-splitRatio);
+end
+
+
 function H = optimizeWeightWithinRange(labels, probs, optRange, mix_ratio)
 datalen = length(labels);
 grtInds = sub2ind(size(probs), (1:datalen)', labels);
@@ -37,9 +94,9 @@ end
 
 
 function H = optimizeWeight(labels, probs)
-probsGrt = full(ind2vec(labels'))';
+probsGT = full(ind2vec(labels'))';
 probsPad = [probs, ones(size(labels))];
-H = probsGrt'*pseudoInverse(probsPad');
+H = probsGT'*pseudoInverse(probsPad');
 end
 
 

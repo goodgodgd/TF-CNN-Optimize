@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-import time
 
 
 # def modify_image(image):
@@ -37,27 +36,27 @@ import time
 
 
 def read_annotations():
-  df_file_name = '%s/%s/%s' % (FLAGS.dataset_path, FLAGS.src_annot_dir, FLAGS.src_annot_dir) + '.csv'
+  df_file_name = '%s/%s/%s' % (FLAGS.dataset_dir, FLAGS.src_annot_dir, FLAGS.src_annot_dir) + '.csv'
   df = pd.read_csv(df_file_name, sep='\t')
   return df
 
 
 def extract_specific_category(annots, category):
   annot_subset = annots.loc[annots['category']==category]
+  # remove [0:5,:]
   return annot_subset.iloc[0:5,:]
 
 
 def get_input_queue(annots):
   filenames = annots['image_name'].tolist()
-  filenames = [os.path.join(FLAGS.dataset_path + '/' + FLAGS.src_image_dir, fname) for fname in filenames]
+  filenames = [os.path.join(FLAGS.dataset_dir + '/' + FLAGS.src_image_dir, fname) for fname in filenames]
   xmins = annots['xmin'].tolist()
   xmaxs = annots['xmax'].tolist()
   ymins = annots['ymin'].tolist()
   ymaxs = annots['ymax'].tolist()
   widths  = annots['width'].tolist()
   heights = annots['height'].tolist()
-  print('create input queue:', len(filenames))
-  print(filenames[0])
+
   filename_queue = tf.train.string_input_producer(filenames, shuffle=False, num_epochs=1)
   input_queue = tf.train.slice_input_producer( \
                               [xmins, xmaxs, ymins, ymaxs, widths, heights], \
@@ -65,24 +64,27 @@ def get_input_queue(annots):
   return filename_queue, input_queue
 
 
-def read_image(input_queue):
-  filename_queue = input_queue[0]
+def read_image(filename_queue):
   reader = tf.WholeFileReader()
   key, value = reader.read(filename_queue)
   image = tf.image.decode_jpeg(value)
+  image = tf.expand_dims(image, axis=0)
   return key, image
 
 
 def crop_image(image, input_queue):
-  offset_x = input_queue[0]
-  offset_y = input_queue[2]
-  width = input_queue[1] - input_queue[0]
-  height = input_queue[3] - input_queue[2]
+  box_data = tf.cast(input_queue, dtype=tf.float32)
+  boxes = [[box_data[2]/box_data[5], box_data[0]/box_data[4], \
+           box_data[3]/box_data[5], box_data[1]/box_data[4]]]
+
+  box_ind = tf.constant(np.asarray([0]).astype(np.float32), dtype=tf.int32)
+  target_size = tf.constant(np.asarray([300,300]).astype(np.float32), dtype=tf.int32)
+  crop_image = tf.image.crop_and_resize(image=image, boxes=boxes, box_ind=box_ind, crop_size=target_size)
   # object_image = tf.image.resize_images(image,[height,width])
   # object_image = tf.image.crop_to_bounding_box(image=image, \
   #                              offset_height=offset_y, offset_width=offset_x, \
   #                              target_height=height, target_width=width)
-  return image
+  return crop_image
 
 
 def image_proc_tensor(annots):
@@ -103,8 +105,7 @@ def run_and_save_image(image, category, num_images):
       print('run_and_save_image:', img.shape)
       img = Image.fromarray(img, "RGB")
       img.show('image')
-      # img.save(os.path.join(FLAGS.dataset_path, "foo"+str(i)+".jpeg"))
-
+      # img.save(os.path.join(FLAGS.dataset_dir, "foo"+str(i)+".jpeg"))
 
 
 
@@ -143,14 +144,13 @@ def main(_):
     annot_subset = extract_specific_category(annots, category)
     subset_size = annot_subset.shape[0]
     image = image_proc_tensor(annot_subset)
-    # filename_queue, boundbox_queue = get_input_queue(annot_subset)
     run_and_save_image(image, category, subset_size)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
-    '--dataset_path',
+    '--dataset_dir',
     type=str,
     default='/home/cideep/Work/tensorflow/datasets/VOC-2012/VOC-2012-train',
     help='dataset dir'

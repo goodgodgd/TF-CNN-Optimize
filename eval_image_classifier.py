@@ -38,7 +38,7 @@ tf.app.flags.DEFINE_string(
     'master', '', 'The address of the TensorFlow master to use.')
 
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', '/tmp/tfmodel/',
+    'checkpoint_dir', '/tmp/tfmodel/',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 
@@ -171,10 +171,11 @@ def main(_):
       # This ensures that we make a single pass over all of the data.
       num_batches = math.ceil(dataset.num_samples / float(FLAGS.batch_size))
 
-    if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
-      checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
+    print('checkpoint', FLAGS.checkpoint_dir)
+    if tf.gfile.IsDirectory(FLAGS.checkpoint_dir):
+      checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_dir)
     else:
-      checkpoint_path = FLAGS.checkpoint_path
+      checkpoint_path = FLAGS.checkpoint_dir
 
     tf.logging.info('Evaluating %s' % checkpoint_path)
 

@@ -2,6 +2,8 @@ import numpy as np
 import os
 import shutil
 
+print(list(range(10)))
+
 indices = np.arange(10)
 np.random.shuffle(indices)
 print(indices)

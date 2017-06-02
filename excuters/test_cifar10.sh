@@ -1,24 +1,28 @@
+# changing lines
+DATASET_NAME=cifar10
+MODEL_NAME=inception_v4
+
+# below lines are fixed
+PYTHON_PATH=/home/cideep/Work/tensorflow/tfenv/bin
 SCRIPT=`realpath $0`
 THISPATH=`dirname $SCRIPT`
 
-DATASET_NAME=cifar10
-DATASET_DIR=/home/cideep/Work/tensorflow/datasets/cifar-10/tfrecord
+DATASET_DIR=/home/cideep/Work/tensorflow/datasets/${DATASET_NAME}/tfrecord
+CHECKPOINT_DIR=/home/cideep/Work/tensorflow/checkpoints/my-fine-tuned/${MODEL_NAME}_${DATASET_NAME}
+echo -e "checkpoint in ${CHECKPOINT_DIR}"
 
-MODEL_NAME=inception_v4
-CHECKPOINT_PATH=/home/cideep/Work/tensorflow/checkpoints/my-fine-tuned/inception-v4-cifar10
-
-EVAL_DIR=${CHECKPOINT_PATH}/result
+EVAL_DIR=${CHECKPOINT_DIR}/result
 rm -r ${EVAL_DIR}
 mkdir ${EVAL_DIR}
 
-echo 'start evaluating inception-v4 on cifar10'
-python ${THISPATH}/../eval_image_classifier.py \
+echo -e "start evaluating ${MODEL_NAME} on ${DATASET_NAME}"
+${PYTHON_PATH}/python ${THISPATH}/../eval_image_classifier.py \
     --eval_dir=${EVAL_DIR} \
     --dataset_name=${DATASET_NAME} \
     --dataset_split_name=test \
     --dataset_dir=${DATASET_DIR} \
     --model_name=${MODEL_NAME} \
-    --checkpoint_path=${CHECKPOINT_PATH}
+    --checkpoint_dir=${CHECKPOINT_DIR}
 
-echo -e 'finished evaluating inception-v4 on cifar10\n\n\n'
+echo -e "finished evaluating ${MODEL_NAME} on ${DATASET_NAME}\n\n\n"
 

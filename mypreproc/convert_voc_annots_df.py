@@ -5,7 +5,6 @@ import fnmatch
 import pandas as pd
 import tensorflow as tf
 import xml.etree.ElementTree as et
-from my_exceptions import PathError
 
 FLAGS = None
 df_cols = ['category', 'image_name', 'xmin', 'xmax', 'ymin', 'ymax', 'width', 'height']
