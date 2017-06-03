@@ -1,3 +1,5 @@
+CHECKPOINT_ROOT=/home/cideep/Work/tensorflow/checkpoints/Link-to-checkpoints/my-fine-tuned
+
 function myoutput()
 {
 	# input arguments
@@ -9,7 +11,7 @@ function myoutput()
 	SCRIPT=`realpath $0`
 	THISPATH=`dirname $SCRIPT`
 
-	CHECKPOINT_PATH=/home/cideep/Work/tensorflow/checkpoints/my-fine-tuned/${MODEL_NAME}_${DATASET_NAME}/model.ckpt-50000
+	CHECKPOINT_PATH=${CHECKPOINT_ROOT}/${MODEL_NAME}_${DATASET_NAME}/model.ckpt-50000
 	OUTPUT_DIR=${OUTPUT_ROOT}/${MODEL_NAME}_${DATASET_NAME}
 
 	SPLIT_NAME=test

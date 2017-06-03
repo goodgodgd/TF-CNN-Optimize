@@ -1,3 +1,6 @@
+CHECKPOINT_ROOT=/home/cideep/Work/tensorflow/checkpoints/Link-to-checkpoints
+DATASET_ROOT=/home/cideep/Work/tensorflow/datasets/Link-to-datasets
+
 function mytrain()
 {
 	# input arguments
@@ -9,16 +12,24 @@ function mytrain()
 	SCRIPT=`realpath $0`
 	THISPATH=`dirname $SCRIPT`
 
-	DATASET_DIR=/home/cideep/Work/tensorflow/datasets/${DATASET_NAME}/tfrecord
-	CHECKPOINT_PATH=/home/cideep/Work/tensorflow/checkpoints/${MODEL_NAME}.ckpt
-	CHECKPOINT_EXCLUDE="${SCOPE_VAR}/Logits,${SCOPE_VAR}/AuxLogits"
-	TRAIN_DIR=/home/cideep/Work/tensorflow/checkpoints/${MODEL_NAME}_${DATASET_NAME}
-	rm -r ${TRAIN_DIR}
-	mkdir ${TRAIN_DIR}
+	DATASET_DIR=${DATASET_ROOT}/${DATASET_NAME}/tfrecord
+	CHECKPOINT_PATH=${CHECKPOINT_ROOT}/${MODEL_NAME}.ckpt
+	TRAIN_LOG_DIR=${CHECKPOINT_ROOT}/${MODEL_NAME}_${DATASET_NAME}
+	echo -e "remake ${TRAIN_LOG_DIR}"
+	rm -r ${TRAIN_LOG_DIR}
+	mkdir ${TRAIN_LOG_DIR}
+
+	if [[ ${MODEL_NAME} == *"inception"* ]]; then
+		CHECKPOINT_EXCLUDE="${SCOPE_VAR}/Logits,${SCOPE_VAR}/AuxLogits"
+	elif [[ ${MODEL_NAME} == *"vgg"* ]]; then
+		CHECKPOINT_EXCLUDE="${SCOPE_VAR}/fc8"
+	elif [[ ${MODEL_NAME} == *"resnet_v2_"* ]]; then
+		CHECKPOINT_EXCLUDE="${SCOPE_VAR}/logits"
+	fi
 
 	echo -e "start retraining ${MODEL_NAME} on ${DATASET_NAME}"
 	${PYTHON_PATH}/python ${THISPATH}/../train_image_classifier.py \
-		--train_dir=${TRAIN_DIR} \
+		--train_dir=${TRAIN_LOG_DIR} \
 		--optimizer=rmsprop \
 		--dataset_name=${DATASET_NAME} \
 		--dataset_split_name=train \
@@ -34,14 +45,12 @@ function mytrain()
 	echo -e "finished retraining ${MODEL_NAME} on ${DATASET_NAME}"
 }
 
-declare -a datasets=("cifar10" "cifar100" "VOC-2012")
-declare -a models=("inception_v4" "inception_resnet_v2")
-declare -a scopes=("InceptionV4" "InceptionResnetV2")
+declare -a datasets=("cifar10" "cifar100" "voc2012")
+declare -a models=("resnet_v2_50" "resnet_v2_101" "vgg_16" "vgg_19" "inception_resnet_v2" "inception_v4")
+declare -a scopes=("resnet_v2_50" "resnet_v2_101" "vgg_16" "vgg_19" "InceptionResnetV2" "InceptionV4")
 
-for data in "${datasets[@]}"
-do
-	for i in {0..1}
-	do
+for data in "${datasets[@]}"; do
+	for i in {0..1}; do
 		mytrain "$data" "${models[i]}" "${scopes[i]}"
 	done
 done

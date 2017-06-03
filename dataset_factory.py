@@ -29,6 +29,14 @@ def dataset_config(dataset_name):
       'image': 'A [32 x 32 x 3] color image.',
       'label': 'A single integer between 0 and 99',
     }
+  elif dataset_name == 'voc2012':
+    splits_to_sizes = {'train': 28095, 'validatation': 6020, 'test': 6020}
+    num_classes = 20
+    example_shape = [299, 299, 3]
+    items_to_descriptors = {
+      'image': 'A [299 x 299 x 3] color image.',
+      'label': 'A single integer between 0 and 19',
+    }
   else:
     raise ValueError('dataset name %s was not recognized.' % dataset_name)
 

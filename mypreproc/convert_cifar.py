@@ -129,15 +129,15 @@ def convert_cifar(dataset_dir, validation_ratio, \
   training_images, training_labels, validation_images, validataion_labels \
       = _shuffle_and_split_data(images, labels, validation_ratio)
 
-  training_record_name = os.path.join(output_dir, 'cifar%d_train.tfrecord' % num_classes)
+  training_record_name = os.path.join(output_dir, 'train.tfrecord')
   _write_tfrecord(training_images, training_labels, training_record_name)
 
-  validation_record_name = os.path.join(output_dir, 'cifar%d_validation.tfrecord' % num_classes)
+  validation_record_name = os.path.join(output_dir, 'validation.tfrecord')
   _write_tfrecord(validation_images, validataion_labels, validation_record_name)
 
   # process the test data
   test_images, test_labels = _collect_data(dataset_dir, test_pattern, label_key)
-  test_record_name = os.path.join(output_dir, 'cifar%d_test.tfrecord' % num_classes)
+  test_record_name = os.path.join(output_dir, 'test.tfrecord')
   _write_tfrecord(test_images, test_labels, test_record_name)
 
   print('Finished converting the cifar%d dataset!' % num_classes)

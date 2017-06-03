@@ -46,8 +46,7 @@ name_to_name_scope = {'inception_v4': 'InceptionV4',
                      'inception_resnet_v2': 'InceptionResnetV2'}
 name_to_image_size = {'inception_v4': inception.inception_v4.default_image_size,
                      'inception_resnet_v2': inception.inception_resnet_v2.default_image_size}
-dataset_to_num_classes = {'cifar10': 10,
-                          'cifar100': 100}
+dataset_to_num_classes = {'cifar10': 10, 'cifar100': 100, 'voc2012': 20}
 
 DATASET_PATH_PATTERN = '/home/cideep/Work/tensorflow/datasets/%s/tfrecord'
 OUTPUT_DATA_PATH = '/home/cideep/Work/tensorflow/output-data'

@@ -1,3 +1,6 @@
+CHECKPOINT_ROOT=/home/cideep/Work/tensorflow/checkpoints/Link-to-checkpoints/my-fine-tuned
+DATASET_ROOT=/home/cideep/Work/tensorflow/datasets/Link-to-datasets
+
 function mytest()
 {
 	# input arguments
@@ -8,8 +11,8 @@ function mytest()
 	SCRIPT=`realpath $0`
 	THISPATH=`dirname $SCRIPT`
 
-	DATASET_DIR=/home/cideep/Work/tensorflow/datasets/${DATASET_NAME}/tfrecord
-	CHECKPOINT_DIR=/home/cideep/Work/tensorflow/checkpoints/my-fine-tuned/${MODEL_NAME}_${DATASET_NAME}
+	DATASET_DIR=${DATASET_ROOT}/${DATASET_NAME}/tfrecord
+	CHECKPOINT_DIR=${CHECKPOINT_ROOT}/${MODEL_NAME}_${DATASET_NAME}
 	echo -e "checkpoint in ${CHECKPOINT_DIR}"
 
 	EVAL_DIR=${CHECKPOINT_DIR}/result
