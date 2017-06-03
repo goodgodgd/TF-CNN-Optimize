@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import argparse
 import sys
-import fnmatch
 import tensorflow as tf
 from my_exceptions import PathError
 from convert_cifar import convert_cifar10, convert_cifar100

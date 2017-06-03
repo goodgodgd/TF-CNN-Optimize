@@ -46,12 +46,10 @@ def collect_images(annots):
     img = read_and_preproc(os.path.join(image_dir, annots.ix[idx,'image_name']),
                            annots.ix[idx, ['xmin', 'xmax', 'ymin', 'ymax']].tolist())
     total_images[idx] = img
-    modval = int(num_imgs/1000);
+    modval = int(num_imgs/200);
     implot = None
-
     if idx % modval == 0:
       print(idx, annots.ix[idx,['category','image_name']].tolist())
-
       if implot is None:
         implot = plt.imshow(img)
       else:
@@ -70,7 +68,9 @@ def read_and_preproc(image_path, bndbox):
   return img
 
 
-def write_tfrecord(images, labels, output_filename):
+def write_tfrecord(images, labels):
+  output_filename = "%s/%s/%s" % (FLAGS.dataset_dir, FLAGS.record_dir, FLAGS.record_dir)
+
   with tf.python_io.TFRecordWriter(output_filename) as writer:
     num_images = images.shape[0]
     depth = images.shape[3]
@@ -102,7 +102,7 @@ def main():
   annots = read_annotations()
   labels = create_labels(annots)
   images = collect_images(annots)
-  write_tfrecord(images, labels, os.path.join(images, FLAGS.record_dir))
+  write_tfrecord(images, labels)
 
 
 if __name__ == '__main__':

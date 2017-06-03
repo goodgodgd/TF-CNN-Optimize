@@ -1,14 +1,14 @@
-import numpy as np
 import os
-import shutil
+import sys
+import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from nets import inception
 from preprocessing import inception_preprocessing
-import convert_cifar as cifar
 import dataset_utils
 import my_exceptions
+import mypreproc.convert_cifar as cifar
 
 slim = tf.contrib.slim
 
