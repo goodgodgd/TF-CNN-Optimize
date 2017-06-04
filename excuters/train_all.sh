@@ -49,7 +49,7 @@ function mytrain()
 	echo -e "finished retraining ${MODEL_NAME} on ${DATASET_NAME}"
 }
 
-declare -a datasets=("voc2012" "cifar10" "cifar100")
+declare -a datasets=("voc2012" "cifar100" "cifar10")
 declare -a models=("resnet_v2_50" "resnet_v2_101" "vgg_16" "vgg_19" "inception_resnet_v2" "inception_v4")
 declare -a scopes=("resnet_v2_50" "resnet_v2_101" "vgg_16" "vgg_19" "InceptionResnetV2" "InceptionV4")
 
