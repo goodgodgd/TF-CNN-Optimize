@@ -1,20 +1,21 @@
 import os
 import argparse
 import sys
+sys.path.append("/home/cideep/Work/tensorflow/codes")
+
+import collections
 import numpy as np
 import pandas as pd
-import convert_voc_annots_df as vocdf
+import mypreproc.convert_voc_annots_df as vocdf
 from skimage import io
 from skimage import transform
 import matplotlib.pyplot as plt
 import tensorflow as tf
-
-sys.path.append("/home/cideep/Work/tensorflow/codes")
 import nets.inception_v4 as inceptionV4
 
 FLAGS = None
 df_cols = vocdf.df_cols
-image_size = inceptionV4.inception_v4.default_image_size
+IMAGE_SIZE = inceptionV4.inception_v4.default_image_size
 
 
 def read_annotations():
@@ -23,19 +24,6 @@ def read_annotations():
   df = pd.read_csv(df_file_name, sep='\t')
   print("data length", len(df))
   return df
-
-
-def create_labels(annots):
-  label_names = annots.category.unique()
-  label_map = dict(zip(label_names, list(range(len(label_names)))))
-  print('label map', label_map)
-  len_annots = len(annots)
-  labels = np.zeros([len_annots,1])
-
-  for idx in range(len_annots):
-    catgname = annots.ix[idx, 'category']
-    labels[idx] = label_map[catgname]
-  return labels
 
 
 def shuffle_and_split_annots(annots, split_ratio):
@@ -52,15 +40,41 @@ def shuffle_and_split_annots(annots, split_ratio):
   # val_inds = shuffled_indices[range(100, 200)]
   # test_inds = shuffled_indices[range(200, 300)]
 
-  return [annots.ix[train_inds,df_cols].reset_index(), \
-          annots.ix[val_inds,df_cols].reset_index(),
-          annots.ix[test_inds,df_cols].reset_index()]
+  return [annots.ix[train_inds,:].reset_index(), \
+          annots.ix[val_inds,:].reset_index(),
+          annots.ix[test_inds,:].reset_index()]
 
 
-def collect_images(annots):
+def get_label_dict(annots):
+  label_names = annots.category.unique()
+  label_names.sort()
+  label_dict = dict(zip(label_names, list(range(len(label_names)))))
+  label_dict = collections.OrderedDict(sorted(label_dict.items()))
+  print('label map', label_dict)
+  return label_dict
+
+
+def write_labels(label_dict, label_filename):
+  with tf.gfile.Open(label_filename, 'w') as f:
+    for labelname, index in label_dict.items():
+      f.write('%d:%s\n' % (index, labelname))
+    print('labels are written in', label_filename)
+
+
+def create_labels(annots, label_dict):
+  len_annots = len(annots)
+  labels = np.zeros([len_annots,1])
+
+  for idx in range(len_annots):
+    catgname = annots.ix[idx, 'category']
+    labels[idx] = label_dict[catgname]
+  return labels
+
+
+def collect_images(annots, labels):
   image_dir = '%s/%s' % (FLAGS.dataset_dir, FLAGS.image_dir)
   num_imgs = len(annots)
-  total_images = np.zeros([num_imgs, image_size, image_size, 3], dtype=np.uint8)
+  total_images = np.zeros([num_imgs, IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
 
   for idx in range(len(annots)):
     img = read_and_preproc(os.path.join(image_dir, annots.ix[idx,'image_name']),
@@ -69,7 +83,7 @@ def collect_images(annots):
     modval = int(num_imgs/100);
     implot = None
     if idx % modval == 0:
-      print('img', idx, '\t', annots.ix[idx,['category','image_name']].tolist())
+      print('img', idx, 'label', labels[idx], '\t', annots.ix[idx,['category','image_name']].tolist())
       if implot is None:
         implot = plt.imshow(img)
       else:
@@ -84,7 +98,7 @@ def collect_images(annots):
 def read_and_preproc(image_path, bndbox):
   img = io.imread(image_path)
   img = img[bndbox[2]:bndbox[3], bndbox[0]:bndbox[1]]
-  img = transform.resize(img, [image_size, image_size], mode='reflect') * 255
+  img = transform.resize(img, [IMAGE_SIZE, IMAGE_SIZE], mode='reflect') * 255
   img = img.astype(np.uint8)
   return img
 
@@ -96,13 +110,25 @@ def write_tfrecord(record_name, images, labels):
     print('   write_tfrecord/image_shape:', images.shape, 'label_shape:', len(labels))
 
     for index in range(num_images):
+
+      modval = int(num_images / 20);
+      implot = None
+      if index % modval == 0:
+        print('index', index, 'label', labels[index])
+        if implot is None:
+          implot = plt.imshow(images[index])
+        else:
+          implot.set_data(images[index])
+        plt.pause(2)
+        plt.draw()
+
       image_raw = images[index].tostring()
       example = tf.train.Example(features=tf.train.Features(feature={
           'image/encoded': bytes_feature(image_raw),
           'image/format': bytes_feature(b'raw'),
           'image/class/label': int64_feature(int(labels[index])),
-          'image/height': int64_feature(image_size),
-          'image/width': int64_feature(image_size),
+          'image/height': int64_feature(IMAGE_SIZE),
+          'image/width': int64_feature(IMAGE_SIZE),
           'image/depth': int64_feature(depth)
           }))
       writer.write(example.SerializeToString())
@@ -117,15 +143,6 @@ def int64_feature(value):
   return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 
-def write_labels(annots, label_filename):
-  label_names = annots.category.unique()
-  labels = dict(zip(list(range(len(label_names))), label_names))
-  with tf.gfile.Open(label_filename, 'w') as f:
-    for index, labelname in labels.items():
-      f.write('%d:%s\n' % (index, labelname))
-    print('labels are written in', label_filename)
-
-
 def main():
   annots = read_annotations()
   split_ratio = [0.7, 0.15, 0.15]
@@ -135,12 +152,13 @@ def main():
   print("split sizes", len(annot_splits[0]), len(annot_splits[1]), len(annot_splits[2]))
 
   label_filename = os.path.join(output_dir, 'labels.txt')
-  write_labels(annot_splits[0], label_filename)
+  label_dict = get_label_dict(annots)
+  write_labels(label_dict, label_filename)
 
 
   for i in range(3):
-    labels = create_labels(annot_splits[i])
-    images = collect_images(annot_splits[i])
+    labels = create_labels(annot_splits[i], label_dict)
+    images = collect_images(annot_splits[i], labels)
     record_name = os.path.join(output_dir, '%s.tfrecord' % split_names[i])
     write_tfrecord(record_name, images, labels)
 

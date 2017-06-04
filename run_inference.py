@@ -1,30 +1,39 @@
 import os
-import sys
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import scipy.io as sio
 
-from nets import inception
-from preprocessing import inception_preprocessing
+from nets import nets_factory
+from preprocessing import preprocessing_factory
 import dataset_utils
+import dataset_factory
 import my_exceptions
 import mypreproc.convert_cifar as cifar
+import mypreproc.convert_voc as voc
 
 slim = tf.contrib.slim
 
 tf.app.flags.DEFINE_string(
-    'model_name', 'inception_resnet_v2', 'Model name to use')
+    'model', 'inception_resnet_v2', 'Model name to use')
 
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', '/home/cideep/Work/tensorflow/checkpoints/my-fine-tuned/inc-resnet-v2-cifar10/model.ckpt-50000',
-    'The absolute filepath to a checkpoint file.')
+    'scope', 'InceptionResnetV2', 'variable scope to access to logits')
 
 tf.app.flags.DEFINE_string(
     'dataset_name', 'cifar10',
     'The source dataset name')
 
 tf.app.flags.DEFINE_string(
-    'split_name', 'test',
+    'dataset_dir', '/home/cideep/Work/tensorflow/datasets/cifar10/tfrecord',
+    'The source dataset name')
+
+tf.app.flags.DEFINE_string(
+    'checkpoint_dir', '/home/cideep/Work/tensorflow/checkpoints/my-fine-tuned/inc-resnet-v2-cifar10/model.ckpt-50000',
+    'The absolute filepath to a checkpoint file.')
+
+tf.app.flags.DEFINE_string(
+    'split', 'test',
     'The data split name')
 
 tf.app.flags.DEFINE_string(
@@ -35,22 +44,14 @@ tf.app.flags.DEFINE_integer(
     'batch_size', 32,
     'batch input size')
 
+
 FLAGS = tf.app.flags.FLAGS
 
-
-name_to_model_net = {'inception_v4': inception.inception_v4,
-                     'inception_resnet_v2': inception.inception_resnet_v2}
-name_to_arg_scope = {'inception_v4': inception.inception_v4_arg_scope,
-                     'inception_resnet_v2': inception.inception_resnet_v2_arg_scope}
-name_to_name_scope = {'inception_v4': 'InceptionV4',
-                     'inception_resnet_v2': 'InceptionResnetV2'}
-name_to_image_size = {'inception_v4': inception.inception_v4.default_image_size,
-                     'inception_resnet_v2': inception.inception_resnet_v2.default_image_size}
-dataset_to_num_classes = {'cifar10': 10, 'cifar100': 100, 'voc2012': 20}
-
-DATASET_PATH_PATTERN = '/home/cideep/Work/tensorflow/datasets/%s/tfrecord'
-OUTPUT_DATA_PATH = '/home/cideep/Work/tensorflow/output-data'
-DATA_SIZE = 10000
+RECORD_IMAGE_SIZE = None
+if "cifar" in FLAGS.dataset_name:
+    RECORD_IMAGE_SIZE = cifar.IMAGE_SIZE
+elif "voc" in FLAGS.dataset_name:
+    RECORD_IMAGE_SIZE = voc.IMAGE_SIZE
 
 
 def read_and_decode(filename_queue):
@@ -71,12 +72,13 @@ def read_and_decode(filename_queue):
     # Convert from a scalar string tensor to a 3D uint8 tensor
     flat_image = tf.decode_raw(features['image/encoded'], tf.uint8)
     label = tf.cast(features['image/class/label'], tf.int32)
-    image = tf.reshape(flat_image, tf.constant([cifar.IMAGE_SIZE, cifar.IMAGE_SIZE, 3], dtype=tf.int32))
+
+    image = tf.reshape(flat_image, tf.constant([RECORD_IMAGE_SIZE, RECORD_IMAGE_SIZE, 3], dtype=tf.int32))
 
     return image, label
 
 
-def inputs(filename, batch_size):
+def create_inputs(filename, batch_size, image_size):
     """Reads input data num_epochs times.
 
     Args:
@@ -91,40 +93,36 @@ def inputs(filename, batch_size):
     Note that an tf.train.QueueRunner is added to the graph, which
     must be run using e.g. tf.train.start_queue_runners().
     """
-
+    print("filename", filename)
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer([filename], num_epochs=1)
         # Even when reading in multiple threads, share the filename queue.
         image, label = read_and_decode(filename_queue)
 
-        # pre process for inception input
-        image_size = name_to_image_size[FLAGS.model_name]
-        processed_image = inception_preprocessing.preprocess_image(
-            image, image_size, image_size, is_training=False)
+        # pre process for input
+        image_preprocessing_fn = preprocessing_factory.get_preprocessing( \
+            FLAGS.model, is_training=False)
+        processed_image = image_preprocessing_fn(image, image_size, image_size)
+        processed_images, raw_images, labels = tf.train.batch( \
+            tensors=[processed_image, image, label], \
+            batch_size=batch_size, num_threads=2, capacity=1000)
 
-        processed_images, raw_images, labels = tf.train.batch(tensors=[processed_image, image, label],
-                                                  batch_size=batch_size,
-                                                  num_threads=2, capacity=1000)
-
-    print(processed_images.shape)
+    print("input shape", processed_images.shape)
     return processed_images, raw_images, labels
 
 
-def pass_network(processed_images, model_name, num_classes):
-    # Create the model, use the default arg scope to configure the batch norm parameters.
-    net_logit = name_to_model_net[model_name]
-    arg_scope = name_to_arg_scope[model_name]
+def pass_network(processed_images, model_name, network_fn):
+    arg_scope = nets_factory.arg_scopes_map[model_name]
     with slim.arg_scope(arg_scope()):
-        logits, _ = net_logit(processed_images, num_classes=num_classes, is_training=False)
-    # also save logits
+        logits, _ = network_fn(processed_images)
     probabilities = tf.nn.softmax(logits)
     return probabilities
 
 
 def init_ops(sess):
     init_fn = slim.assign_from_checkpoint_fn(
-        FLAGS.checkpoint_path,
-        slim.get_model_variables(name_to_name_scope[FLAGS.model_name]))
+        tf.train.latest_checkpoint(FLAGS.checkpoint_dir),
+        slim.get_model_variables(FLAGS.scope))
     init_fn(sess)
     init_local = tf.local_variables_initializer()
     sess.run(init_local)
@@ -152,7 +150,6 @@ def print_results(images, labels, probabilities, class_names):
 def stack_results(output_data, labels, probabilities, step, bs):
     if (step+1) * bs >= output_data.shape[0]:
         raise my_exceptions.GeneralError('out of data rows at %d' % step)
-    print('data shape', labels.shape, probabilities.shape)
     output_data[(step * bs):((step+1) * bs), 0:] = np.column_stack((labels, probabilities))
     return output_data
 
@@ -164,20 +161,27 @@ def save_probabilities(output_data, dstpath, filename):
         os.makedirs(dstpath)
     output_path = os.path.join(dstpath, filename)
     np.save(output_path, output_data)
+    matfile_path = output_path + '.mat'
+    sio.savemat(matfile_path, {"data": output_data})
 
 
 def main(_):
-    class_names = dataset_utils.read_label_file(DATASET_PATH_PATTERN % FLAGS.dataset_name)
-    filename = os.path.join((DATASET_PATH_PATTERN % FLAGS.dataset_name) + '/%s.tfrecord' % FLAGS.split_name)
-    num_classes = dataset_to_num_classes[FLAGS.dataset_name]
-    output_data = np.zeros((DATA_SIZE,num_classes+1))
+    print("dataset dir", FLAGS.dataset_dir)
+    class_names = dataset_utils.read_label_file(FLAGS.dataset_dir)
+    filename = os.path.join(FLAGS.dataset_dir, '%s.tfrecord' % FLAGS.split)
+
+    splits_to_sizes, num_classes, image_shape, items_to_descriptions \
+        = dataset_factory.dataset_config(FLAGS.dataset_name)
+
+    output_data = np.zeros((splits_to_sizes[FLAGS.split],num_classes+1))
     print(output_data.shape)
 
     with tf.Graph().as_default():
-
-        processed_images, raw_images, labels = inputs(filename, FLAGS.batch_size)
-
-        probabilities = pass_network(processed_images, FLAGS.model_name, num_classes)
+        network_fn = nets_factory.get_network_fn(
+            FLAGS.model, num_classes=num_classes, is_training=False)
+        processed_images, raw_images, labels = create_inputs( \
+            filename, FLAGS.batch_size, network_fn.default_image_size)
+        probabilities = pass_network(processed_images, FLAGS.model, network_fn)
 
         sess = tf.Session()
         init_ops(sess)
@@ -213,7 +217,7 @@ def main(_):
         coord.join(threads)
         sess.close()
 
-    save_probabilities(output_data, FLAGS.output_dir, FLAGS.split_name)
+    save_probabilities(output_data, FLAGS.output_dir, FLAGS.split)
 
 
 if __name__ == '__main__':

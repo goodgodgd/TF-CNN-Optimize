@@ -14,7 +14,7 @@ FILE_PATTERN = '%s.tfrecord'
 
 def dataset_config(dataset_name):
   if dataset_name == 'cifar10':
-    splits_to_sizes = {'train': 40000, 'validatation': 10000, 'test': 10000}
+    splits_to_sizes = {'train': 40000, 'validation': 10000, 'test': 10000}
     num_classes = 10
     example_shape = [32, 32, 3]
     items_to_descriptors = {
@@ -22,7 +22,7 @@ def dataset_config(dataset_name):
       'label': 'A single integer between 0 and 9',
     }
   elif dataset_name == 'cifar100':
-    splits_to_sizes = {'train': 40000, 'validatation': 10000, 'test': 10000}
+    splits_to_sizes = {'train': 40000, 'validation': 10000, 'test': 10000}
     num_classes = 100
     example_shape = [32, 32, 3]
     items_to_descriptors = {
@@ -30,7 +30,7 @@ def dataset_config(dataset_name):
       'label': 'A single integer between 0 and 99',
     }
   elif dataset_name == 'voc2012':
-    splits_to_sizes = {'train': 28095, 'validatation': 6020, 'test': 6020}
+    splits_to_sizes = {'train': 28095, 'validation': 6020, 'test': 6020}
     num_classes = 20
     example_shape = [299, 299, 3]
     items_to_descriptors = {
