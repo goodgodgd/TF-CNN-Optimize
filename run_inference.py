@@ -199,11 +199,11 @@ def main(_):
                 [np_images, np_labels, np_probabilities] = sess.run(
                     [raw_images, labels, probabilities])
 
-                print_results(np_images, np_labels, np_probabilities, class_names)
+                # print_results(np_images, np_labels, np_probabilities, class_names)
                 output_data = stack_results(output_data, np_labels, np_probabilities, step, FLAGS.batch_size)
                 step += 1
-                # if step > 100:
-                #     raise my_exceptions.GeneralError('out of range')
+                if step%100==0:
+                    print("step:", step)
 
         except tf.errors.OutOfRangeError:
             print('Done evaluating for %d steps.' % step)

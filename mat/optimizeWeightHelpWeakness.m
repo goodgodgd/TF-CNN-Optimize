@@ -17,11 +17,11 @@ classWeight = classWeightByAccuracy(labels, probs, power, changeInds);
 [(1:numClasses)', classWeight]
 
 probsTarget = probs;
-weightVec = ones(datalen,1)*restWeight;
 for ci = changeInds'
     probsTarget(ci,:) = createTargetProb(probs(ci,:), labels(ci));
-    weightVec(ci) = classWeight(labels(ci));
 end
+weightVec = ones(datalen,1) * restWeight;
+weightVec(changeInds) = classWeight(labels(changeInds));
 
 probsTarget = repmat(weightVec,1,numClasses) .* probsTarget;
 probsPad = [probs, ones(size(labels))];
@@ -33,12 +33,12 @@ end
 function classWeight = classWeightByAccuracy(labels, probs, power, changeInds)
 
 numClasses = max(labels);
-counts = histcounts(labels(changeInds), 0.5:1:numClasses+0.5) + 5;
+counts = histcounts(labels(changeInds), 0.5:1:numClasses+0.5) + 2;
 normCounts = counts'./max(counts)
 
 funcs = cnnOptFuncs();
 classAccuracy = funcs.evaluateResult('help weakness', labels, probs, 0, 0);
-classAccuracy = classAccuracy(:,4);
+classAccuracy = classAccuracy(1:numClasses,4);
 classWeight = 1./(classAccuracy.^power)./normCounts;
 end
 

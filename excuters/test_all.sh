@@ -35,9 +35,9 @@ function mytest()
 }
 
 
-declare -a datasets=("voc2012" "cifar10" "cifar100")
-declare -a models=("resnet_v2_50" "resnet_v2_101" "vgg_16" "vgg_19" "inception_resnet_v2" "inception_v4")
-declare -a scopes=("resnet_v2_50" "resnet_v2_101" "vgg_16" "vgg_19" "InceptionResnetV2" "InceptionV4")
+declare -a datasets=("cifar100" "voc2012" "cifar10")
+declare -a models=("resnet_v2_50" "resnet_v2_101" "inception_resnet_v2" "inception_v4")
+declare -a scopes=("resnet_v2_50" "resnet_v2_101" "InceptionResnetV2" "InceptionV4")
 
 for data in "${datasets[@]}"; do
 	for i in ${!models[@]}; do
