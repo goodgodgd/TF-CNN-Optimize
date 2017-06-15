@@ -1,4 +1,4 @@
-function H = optimizeWeightLowMaxProb(labels, probs, competingBound, power)
+function H = optimizeWeightInRange(labels, probs, competingBound, power)
 datalen = length(labels);
 numClasses = size(probs,2);
 probGTInds = sub2ind(size(probs), (1:datalen)', labels);
@@ -18,9 +18,6 @@ end
 % set weight for samples
 weightByAccuracy = calcClassWeightByAccuracy(labels, probs, power, competingInds);
 % create identical pad
-padWeight = calcPadWeight(labels(competingInds), numClasses);
-identPad = diag(padWeight);
-identPad = identPad(padWeight>0.001,:);
 identPad = eye(numClasses)*3;
 
 % set weighted probs
@@ -32,7 +29,32 @@ probsTarget = [probsTarget; identPad];
 probsPad = [probsPad; [identPad ones(size(identPad(:,1)))]];
 % compute wieght
 H = probsTarget'*pseudoInverse(probsPad');
-a=1;
+end
+
+
+function probGT = createGTProbByOneHot(probPredict, labelGT)
+probGT = zeros(size(probPredict));
+probGT(labelGT) = 1;
+end
+
+
+function wegiht = calcClassWeightByAccuracy(labels, probs, power, competingInds)
+funcs = cnnOptFuncs();
+classAccuracy = funcs.evaluateResult('training', labels, probs, 0, 0);
+classAccuracy = classAccuracy(:,4);
+sampleAccuracy = classAccuracy(labels(competingInds));
+wegiht = 1./(sampleAccuracy.^power);
+end
+
+
+%=========================================================
+% legacy
+
+function padWeight = calcPadWeight(labels, numClasses)
+edges = 0.5:1:numClasses+0.5;
+numSamplesEachClass = histcounts(labels, edges);
+maxVal = max(numSamplesEachClass);
+padWeight = maxVal - numSamplesEachClass;
 end
 
 
@@ -48,29 +70,6 @@ splitRatio = 0.9;
 probGT(labelGT) = sum*splitRatio;
 probGT(labelMax) = sum*(1-splitRatio);
 probDiff = probGT - probPredict;
-end
-
-
-function probGT = createGTProbByOneHot(probPredict, labelGT)
-probGT = zeros(size(probPredict));
-probGT(labelGT) = 1;
-end
-
-
-function padWeight = calcPadWeight(labels, numClasses)
-edges = 0.5:1:numClasses+0.5;
-numSamplesEachClass = histcounts(labels, edges);
-maxVal = max(numSamplesEachClass);
-padWeight = maxVal - numSamplesEachClass;
-end
-
-
-function wegiht = calcClassWeightByAccuracy(labels, probs, power, competingInds)
-funcs = cnnOptFuncs();
-classAccuracy = funcs.evaluateResult('training', labels, probs, 0, 0);
-classAccuracy = classAccuracy(:,4);
-sampleAccuracy = classAccuracy(labels(competingInds));
-wegiht = 1./(sampleAccuracy.^power);
 end
 
 

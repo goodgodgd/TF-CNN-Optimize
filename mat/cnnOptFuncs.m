@@ -1,6 +1,7 @@
 function funs = cnnOptFuncs()
   funs.loadData=@loadData;
   funs.optimizeWeightWithWeight=@optimizeWeightWithWeight;
+  funs.correctProbsSelected=@correctProbsSelected;
   funs.correctProbs=@correctProbs;
   funs.evaluateResult=@evaluateResult;
   funs.evaluateResultSeperate=@evaluateResultSeperate;
@@ -16,6 +17,13 @@ probs = data(:,2:end);
 probSum = sum(probs,2);
 probs = probs(abs(probSum-1)<0.001,:);
 labels = labels(abs(probSum-1)<0.001);
+end
+
+
+function probsCorrected = correctProbsSelected(probs, H, selectInds)
+probsSelectCorr = correctProbs(probs(selectInds,:), H);
+probsCorrected = probs;
+probsCorrected(selectInds,:) = probsSelectCorr;
 end
 
 
@@ -61,27 +69,19 @@ end
 
 
 function [augmAccuracy, classAccuracy] = evaluateResultSeperate(scopeStr, labels, probs, ...
-    H, selectInds, printAccuracy, histFigNum)
+    probsCorr, selectInds, printAccuracy, histFigNum)
 
-% total accuracy before
+% total accuracy before and after correction
 totalBefAccuracy = evaluateAccuracy(labels, probs);
+totalCorrAccuracy = evaluateAccuracy(labels, probsCorr);
 
-% low accuracy class samples before
-probsSelect = probs(selectInds,:);
-labelsSelect = labels(selectInds);
-selectAccuracyBef = evaluateAccuracy(labelsSelect, probsSelect);
-% low accuracy class samples after correction
-probsSelectCorr = correctProbs(probsSelect, H);
-selectAccuracyCorr = evaluateAccuracy(labelsSelect, probsSelectCorr);
+% low accuracy class samples before and after correction
+selectAccuracyBef = evaluateAccuracy(labels(selectInds), probs(selectInds,:));
+selectAccuracyCorr = evaluateAccuracy(labels(selectInds), probsCorr(selectInds,:));
 
-% total smaples partially corrected
-probsPartCorr = probs;
-probsPartCorr(selectInds,:) = probsSelectCorr;
-totalPartCorrAccuracy = evaluateAccuracy(labels, probsPartCorr);
-
-sprintf('%s, total accuracy: %d  %d  %.3f\n', scopeStr, totalPartCorrAccuracy)
-augmAccuracy = [totalBefAccuracy(3) totalPartCorrAccuracy(3) ...
-    totalPartCorrAccuracy(3) - totalBefAccuracy(3) ...
+sprintf('%s, total accuracy: %d  %d  %.3f\n', scopeStr, totalCorrAccuracy)
+augmAccuracy = [totalBefAccuracy(3) totalCorrAccuracy(3) ...
+    totalCorrAccuracy(3) - totalBefAccuracy(3) ...
     selectAccuracyBef(3) selectAccuracyCorr(3) ...
     selectAccuracyCorr(3) - selectAccuracyBef(3)];
 
@@ -89,7 +89,7 @@ numClass = size(probs,2);
 classAccuracy = zeros(numClass, 4);
 for i=1:numClass
     inds = find(labels==i);
-    classAccuracy(i,:) = [i evaluateAccuracy(labels(inds), probsPartCorr(inds,:))];
+    classAccuracy(i,:) = [i evaluateAccuracy(labels(inds), probsCorr(inds,:))];
 end
 
 if nargin>3 && printAccuracy>0
