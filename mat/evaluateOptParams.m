@@ -63,7 +63,7 @@ for i=1:numCnns
     datind = indexComb(i,2);
     dirPath = [datadir, '/', cell2mat(networks(netind)), '_', cell2mat(datasets(datind))]
     [testLabels, testProbs] = funcs.loadData(dirPath, 'test');
-    classAcc_raw = funcs.evaluateResult('raw test', testLabels, testProbs, 0, 0);
+    classAcc_raw = funcs.evaluateResult('raw test', testLabels, testProbs, 1, 0);
 
     [weightTrainLabels, weightTrainProbs] = funcs.loadData(dirPath, cell2mat(splitNames(splitInd)));
     H = optimizeWeightLowMaxProb(weightTrainLabels, weightTrainProbs, competingBound, power);
