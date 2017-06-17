@@ -1,5 +1,5 @@
-function results = evaluateOptParams(competingBound, power, toClear)
-if nargin<3 || toClear==1
+function results = evaluateCNNs(competingBound, power, padWeight, toClear)
+if nargin==4 && toClear==1
     clc
     clear
 end
@@ -11,12 +11,12 @@ end
 splitInd = 2;
 
 % results = evaluateAccuracies(splitInd);
-results = evaluateAccuracies(splitInd, competingBound, power);
+results = evaluateAccuracies(splitInd, competingBound, power, padWeight);
 low_acc_improve_per_dataset = ...
     [mean(results(1:4,9)) mean(results(5:8,9)) mean(results(9:12,9))]
 end
 
-function result = evaluateAccuracies(splitInd, competingBound, power)
+function result = evaluateAccuracies(splitInd, competingBound, power, padWeight)
 
 if ~isempty(strfind(pwd, '\CILAB_MACHINE'))
     datadir = 'C:\Users\CILAB_MACHINE\Desktop\CHD\easy-deep-paper\output-data';
@@ -44,7 +44,7 @@ for i=1:numCnns
         lowAccInds = 1:length(testLabels);
         testProbsCorr = funcs.correctProbs(testProbs, H);
     else
-        H = optimizeWeightInRange(weightTrainLabels, weightTrainProbs, competingBound, power);
+        H = optimizeWeightInRange(weightTrainLabels, weightTrainProbs, competingBound, power, padWeight);
         lowAccInds = findLowAccClassSamples(classAcc_raw(:,4), testLabels);
         testProbsCorr = funcs.correctProbsSelected(testProbs, H, lowAccInds);
     end

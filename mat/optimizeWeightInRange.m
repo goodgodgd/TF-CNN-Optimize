@@ -1,4 +1,4 @@
-function H = optimizeWeightInRange(labels, probs, competingBound, power)
+function H = optimizeWeightInRange(labels, probs, competingBound, power, padWeight)
 datalen = length(labels);
 numClasses = size(probs,2);
 probGTInds = sub2ind(size(probs), (1:datalen)', labels);
@@ -18,7 +18,7 @@ end
 % set weight for samples
 weightByAccuracy = calcClassWeightByAccuracy(labels, probs, power, competingInds);
 % create identical pad
-identPad = eye(numClasses)*3;
+identPad = eye(numClasses)*padWeight;
 
 % set weighted probs
 probsTarget = repmat(weightByAccuracy,1,numClasses) .* probsTarget;
