@@ -36,7 +36,7 @@ if __name__ == '__main__':
     '--dataset',
     type=str,
     default='cifar10',
-    help="""possible options: 'cifar10', 'cifar100', 'voc2012'"""
+    help="""possible options: 'cifar10', 'cifar100' """
   )
   parser.add_argument(
     '--validation_ratio',

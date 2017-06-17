@@ -5,6 +5,7 @@ function funs = cnnOptFuncs()
   funs.correctProbs=@correctProbs;
   funs.evaluateResult=@evaluateResult;
   funs.evaluateResultSeperate=@evaluateResultSeperate;
+  funs.L2Error=@L2Error;
 end
 
 
@@ -102,4 +103,15 @@ if nargin>4 && histFigNum>0
     histogram(classAccuracy(:,4), edges)
     axis([0 1 0 20])
 end
+end
+
+
+function err = L2Error(labels, probs)
+datalen = length(labels);
+probGTInds = sub2ind(size(probs), (1:datalen)', labels);
+probsTarget = zeros(size(probs));
+probsTarget(probGTInds) = 1;
+
+probDiff = probs - probsTarget;
+err = sum(sum(probDiff.*probDiff));
 end

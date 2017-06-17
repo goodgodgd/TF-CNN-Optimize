@@ -110,7 +110,7 @@ def _write_labels(labels, label_filename):
 
 def convert_cifar(dataset_dir, validation_ratio, \
                   training_pattern, test_pattern, label_pattern, label_key, labelname_key):
-  print('Read cifar10 dataset and convert it to .tfrecord format')
+  print('Read cifar dataset and convert it to .tfrecord format')
   # check paths
   if not tf.gfile.Exists(dataset_dir):
     raise PathError('dataset dir [%s] does not exists' % dataset_dir)
