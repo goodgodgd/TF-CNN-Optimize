@@ -9,12 +9,18 @@ function funs = cnnOptFuncs()
 end
 
 
-function [labels, probs] = loadData(path, split)
+function [labels, probs] = loadData(path, split, filter)
+if nargin < 3
+    filter = 1;
+end
 fileName = sprintf('%s/%s.mat', path, split);
 data = load(fileName);
 data = data.data;
 labels = data(:,1)+1;
 probs = data(:,2:end);
+if filter==0
+    return
+end
 probSum = sum(probs,2);
 probs = probs(abs(probSum-1)<0.001,:);
 labels = labels(abs(probSum-1)<0.001);

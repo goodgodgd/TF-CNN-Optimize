@@ -1,26 +1,29 @@
-function evaluateOptParams()
-trySingleCombParams();
-% saveResultAllCombParams();
+function results = evaluateOptParams(competingBound, power, toClear)
+if nargin<3 || toClear==1
+    clc
+    clear
+end
+if nargin<1
+    competingBound = [0.1 0.7];
+    power = 1.5;
 end
 
-
-function trySingleCombParams()
-clc
-clear
 splitInd = 2;
-competingBound = [0.1 0.7];
-power = 1.5;
-eachResult = evaluateParams(splitInd, competingBound, power)
+
+% results = evaluateAccuracies(splitInd);
+results = evaluateAccuracies(splitInd, competingBound, power);
 low_acc_improve_per_dataset = ...
-    [mean(eachResult(1:4,9)) mean(eachResult(5:8,9)) mean(eachResult(9:12,9))]
-a=1;
+    [mean(results(1:4,9)) mean(results(5:8,9)) mean(results(9:12,9))]
 end
 
+function result = evaluateAccuracies(splitInd, competingBound, power)
 
-function result = evaluateParams(splitInd, competingBound, power)
-
+if ~isempty(strfind(pwd, '\CILAB_MACHINE'))
+    datadir = 'C:\Users\CILAB_MACHINE\Desktop\CHD\easy-deep-paper\output-data';
+else
+    datadir = '/home/cideep/Work/tensorflow/output-data';
+end
 splitNames = {'train', 'validation', 'test'};
-datadir = '/home/cideep/Work/tensorflow/output-data';
 networks = {'inception_resnet_v2', 'inception_v4', 'resnet_v2_50', 'resnet_v2_101'};
 datasets = {'cifar10', 'cifar100', 'voc2012'};
 indexComb = combvec(1:4, 1:3)';
@@ -36,13 +39,15 @@ for i=1:numCnns
     classAcc_raw = funcs.evaluateResult('raw test', testLabels, testProbs, 1, 0);
     [weightTrainLabels, weightTrainProbs] = funcs.loadData(dirPath, cell2mat(splitNames(splitInd)));
     
-    H = optimizeWeightInRange(weightTrainLabels, weightTrainProbs, competingBound, power);
-    lowAccInds = findLowAccClassSamples(classAcc_raw(:,4), testLabels);
-    testProbsCorr = funcs.correctProbsSelected(testProbs, H, lowAccInds);
-
-%     H = optimizeWeightBasic(weightTrainLabels, weightTrainProbs);
-%     lowAccInds = 1:length(testLabels);
-%     testProbsCorr = funcs.correctProbs(testProbs, H);
+    if nargin==1
+        H = optimizeWeightBasic(weightTrainLabels, weightTrainProbs);
+        lowAccInds = 1:length(testLabels);
+        testProbsCorr = funcs.correctProbs(testProbs, H);
+    else
+        H = optimizeWeightInRange(weightTrainLabels, weightTrainProbs, competingBound, power);
+        lowAccInds = findLowAccClassSamples(classAcc_raw(:,4), testLabels);
+        testProbsCorr = funcs.correctProbsSelected(testProbs, H, lowAccInds);
+    end
     
     [augmAccuracy, classAcc_cor] = funcs.evaluateResultSeperate('corrected test', ...
         testLabels, testProbs, testProbsCorr, lowAccInds, 0, 0);
@@ -73,36 +78,3 @@ for i=1:size(lowClassInds,1)
 end
 end
 
-
-
-%=========================================================
-% legacy
-
-function saveResultAllCombParams()
-lowBound = 0:0.05:0.3;
-uppBound = 0.5:0.05:0.7;
-powers = 0:0.5:2;
-splitInds = 1:3;
-
-
-boundComb = combvec(lowBound, uppBound, powers, splitInds)';
-numCombs = length(boundComb)
-result = zeros(numCombs, 6);
-
-for i=1:numCombs
-    comb_index = i
-    eachResult = evaluateParams(cell2mat(splitNames(boundComb(i,4))), boundComb(i,1:2), boundComb(i,3));
-    eachResult = eachResult(eachResult(:,1) > 0.1, :);
-    if size(eachResult,1) > 5
-        result(i,:) = [size(eachResult,1) mean(eachResult,1)];
-    else
-        result(i,:) = zeros(1,6);
-    end
-end
-
-result = [boundComb result];
-result = result(result(:,5) > 0, :);
-
-outputfile = '/home/cideep/Work/tensorflow/output-data/optres.mat';
-save(outputfile, 'result');
-end
