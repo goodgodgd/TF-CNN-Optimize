@@ -6,6 +6,7 @@ function funs = utilFuncs()
   funs.evaluateResult=@evaluateResult;
   funs.evaluateResultSeperate=@evaluateResultSeperate;
   funs.L2Error=@L2Error;
+  funs.evaluateAccuracy=@evaluateAccuracy;
 end
 
 
