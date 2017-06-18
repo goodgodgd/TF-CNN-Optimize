@@ -11,19 +11,17 @@ end
 
 splitInd = 2;
 
-% results = evaluateAccuracies(splitInd);
+% [meanResult, verbResult] = evaluateAccuracies(splitInd);
 [meanResult, verbResult] = evaluateAccuracies(splitInd, competingBound, power, padWeight);
 low_acc_improve_per_dataset = ...
     [mean(meanResult(1:4,9)) mean(meanResult(5:8,9)) mean(meanResult(9:12,9))]
+total_acc_improve_per_dataset = ...
+    [mean(meanResult(1:4,6)) mean(meanResult(5:8,6)) mean(meanResult(9:12,6))]
 end
 
 function [meanResult, verbResult] = evaluateAccuracies(splitInd, competingBound, power, padWeight)
 
-if ~isempty(strfind(pwd, '\CILAB_MACHINE'))
-    datadir = 'C:\Users\CILAB_MACHINE\Desktop\CHD\easy-deep-paper\output-data';
-else
-    datadir = '/home/cideep/Work/tensorflow/output-data';
-end
+datadir = '../../output-data';
 splitNames = {'train', 'validation', 'test'};
 networks = {'inception_resnet_v2', 'inception_v4', 'resnet_v2_50', 'resnet_v2_101'};
 datasets = {'cifar10', 'cifar100', 'voc2012'};
@@ -48,7 +46,7 @@ for i=1:numCnns
     else
         H = optimizeWeightInRange(weightTrainLabels, weightTrainProbs, competingBound, power, padWeight);
         lowAccInds = findLowAccClassSamples(classAcc_raw(:,4), testLabels);
-        testProbsCorr = funcs.correctProbsSelected(testProbs, H, lowAccInds);
+        testProbsCorr = funcs.correctProbsLowMaxProb(testProbs, H, competingBound(2));
     end
     
     [augmAccuracy, classAcc_cor] = funcs.evaluateResultSeperate('corrected test', ...

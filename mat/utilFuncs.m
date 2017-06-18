@@ -1,12 +1,14 @@
 function funs = utilFuncs()
   funs.loadData=@loadData;
   funs.optimizeWeightWithWeight=@optimizeWeightWithWeight;
-  funs.correctProbsSelected=@correctProbsSelected;
   funs.correctProbs=@correctProbs;
   funs.evaluateResult=@evaluateResult;
   funs.evaluateResultSeperate=@evaluateResultSeperate;
   funs.L2Error=@L2Error;
   funs.evaluateAccuracy=@evaluateAccuracy;
+  funs.correctProbsLowMaxProb=@correctProbsLowMaxProb;
+  funs.loadImages=@loadImages;
+  funs.loadLabelnames=@loadLabelnames;
 end
 
 
@@ -30,7 +32,35 @@ labels = labels(abs(probSum-1)<0.001);
 end
 
 
-function probsCorrected = correctProbsSelected(probs, H, selectInds)
+function [images, labels] = loadImages(path, dataname)
+fileName = sprintf('%s/%s.mat', path, dataname);
+data = load(fileName);
+images = data.images;
+images = permute(images, [2 3 4 1]);
+labels = data.labels;
+end
+
+
+function labelNames = loadLabelnames(path, dataname)
+fileName = sprintf('%s/%s.txt', path, dataname);
+fid = fopen(fileName, 'r');
+num = 1;
+labelNames = {};
+while 1
+    tline = fgetl(fid);
+    if ~ischar(tline), break, end
+    pos = strfind(tline, ':');
+    if isempty(pos), break, end
+    name = tline(pos+1:end);
+    labelNames = [labelNames {name}];
+end
+fclose(fid);
+end
+
+
+function probsCorrected = correctProbsLowMaxProb(probs, H, maxBound)
+maxProb = max(probs,[],2);
+selectInds = find(maxProb<maxBound);
 probsSelectCorr = correctProbs(probs(selectInds,:), H);
 probsCorrected = probs;
 probsCorrected(selectInds,:) = probsSelectCorr;

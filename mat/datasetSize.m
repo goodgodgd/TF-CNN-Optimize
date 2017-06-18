@@ -1,11 +1,7 @@
 clc
 clear
 
-if ~isempty(strfind(pwd, '\CILAB_MACHINE'))
-    datadir = 'C:\Users\CILAB_MACHINE\Desktop\CHD\easy-deep-paper\output-data';
-else
-    datadir = '/home/cideep/Work/tensorflow/output-data';
-end
+datadir = '../../output-data';
 network = 'inception_v4';
 datasets = {'cifar10', 'cifar100', 'voc2012'};
 splits = {'train', 'validation', 'test'};
