@@ -9,7 +9,7 @@ end
 network = 'inception_v4';
 datasets = {'cifar10', 'cifar100', 'voc2012'};
 splits = {'train', 'validation', 'test'};
-funcs = cnnOptFuncs();
+funcs = utilFuncs();
 
 datasize = zeros(3,3);
 

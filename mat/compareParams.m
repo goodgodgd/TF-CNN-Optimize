@@ -9,7 +9,7 @@ padWeight = 3;
 resLowBnd = zeros(3,6);
 for i=1:3
     competingBound = [lowbnd(i) highbnd];
-    result = evaluateCNNs(competingBound, power, padWeight);
+    [result, verbose] = evaluateCNNs(competingBound, power, padWeight);
     resLowBnd(i,:) = mean(result(:,4:9));
 end
 
@@ -28,7 +28,7 @@ padWeight = 3;
 resHighBnd = zeros(3,6);
 for i=1:3
     competingBound = [lowbnd highbnd(i)];
-    result = evaluateCNNs(competingBound, power, padWeight);
+    [result, ~] = evaluateCNNs(competingBound, power, padWeight);
     resHighBnd(i,:) = mean(result(:,4:9));
 end
 
@@ -46,7 +46,7 @@ padWeight = 3;
 resPower = zeros(3,6);
 for i=1:3
     competingBound = [lowbnd highbnd];
-    result = evaluateCNNs(competingBound, power(i), padWeight);
+    [result, ~] = evaluateCNNs(competingBound, power(i), padWeight);
     resPower(i,:) = mean(result(:,4:9));
 end
 
@@ -64,7 +64,7 @@ padWeight = [2 3 4];
 resPad = zeros(3,6);
 for i=1:3
     competingBound = [lowbnd highbnd];
-    result = evaluateCNNs(competingBound, power, padWeight(i));
+    [result, ~] = evaluateCNNs(competingBound, power, padWeight(i));
     resPad(i,:) = mean(result(:,4:9));
 end
 

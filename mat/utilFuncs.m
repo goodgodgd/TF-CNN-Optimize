@@ -1,4 +1,4 @@
-function funs = cnnOptFuncs()
+function funs = utilFuncs()
   funs.loadData=@loadData;
   funs.optimizeWeightWithWeight=@optimizeWeightWithWeight;
   funs.correctProbsSelected=@correctProbsSelected;
@@ -22,6 +22,8 @@ if filter==0
     return
 end
 probSum = sum(probs,2);
+inds = find(probSum<0.9);
+minInd = min(inds);
 probs = probs(abs(probSum-1)<0.001,:);
 labels = labels(abs(probSum-1)<0.001);
 end

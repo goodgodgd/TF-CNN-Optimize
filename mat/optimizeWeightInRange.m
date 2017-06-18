@@ -39,7 +39,7 @@ end
 
 
 function wegiht = calcClassWeightByAccuracy(labels, probs, power, competingInds)
-funcs = cnnOptFuncs();
+funcs = utilFuncs();
 classAccuracy = funcs.evaluateResult('training', labels, probs, 0, 0);
 classAccuracy = classAccuracy(:,4);
 sampleAccuracy = classAccuracy(labels(competingInds));

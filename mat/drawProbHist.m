@@ -1,10 +1,14 @@
 clc
 clear
 
-datadir = '/home/cideep/Work/tensorflow/output-data';
+if ~isempty(strfind(pwd, '\CILAB_MACHINE'))
+    datadir = 'C:\Users\CILAB_MACHINE\Desktop\CHD\easy-deep-paper\output-data';
+else
+    datadir = '/home/cideep/Work/tensorflow/output-data';
+end
 networks = {'inception_resnet_v2', 'inception_v4', 'resnet_v2_50', 'resnet_v2_101'};
 datasets = {'cifar10', 'cifar100', 'voc2012'};
-funcs = cnnOptFuncs();
+funcs = utilFuncs();
 
 for datind=1:3
     trueProbs = [];
